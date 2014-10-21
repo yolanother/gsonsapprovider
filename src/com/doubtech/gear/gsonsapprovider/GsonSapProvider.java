@@ -1,5 +1,9 @@
 package com.doubtech.gear.gsonsapprovider;
 
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
@@ -16,16 +20,16 @@ import com.samsung.android.sdk.accessory.SAAgent;
 import com.samsung.android.sdk.accessory.SAPeerAgent;
 import com.samsung.android.sdk.accessory.SASocket;
 
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.HashMap;
-
 public abstract class GsonSapProvider extends SAAgent {
-    private final String TAG;
+    public static final long serialVersionUID = 2L;
+    public static final String VERSION = "v0.0.2";
 
+    private final String TAG;
     public static final int CHANNEL = 104;
 
     HashMap<String, Class<?>> mClassRegistry = new HashMap<>();
+    HashMap<Class<?>, String> mReverseClassRegistry = new HashMap<>();
+    HashMap<String, JsonSapProviderConnection> mConnections = new HashMap<>();
 
     private final IBinder mBinder = new LocalBinder();
 
@@ -36,7 +40,24 @@ public abstract class GsonSapProvider extends SAAgent {
 
     @Override
     protected void onServiceConnectionResponse(SASocket saSocket, int result) {
-        
+        JsonSapProviderConnection connection = (JsonSapProviderConnection) saSocket;
+        switch (result) {
+        case CONNECTION_SUCCESS:
+            connection.setPeerId(connection.getConnectedPeerAgent().getPeerId());
+            mConnections.put(
+                    connection.getPeerId(),
+                    connection);
+            onDeviceConnected(
+                    connection.getPeerId(),
+                    connection);
+            break;
+        case CONNECTION_ALREADY_EXIST:
+            connection.setPeerId(connection.getConnectedPeerAgent().getPeerId());
+            mConnections.put(
+                    connection.getPeerId(),
+                    connection);
+            break;
+        }
     }
 
     @Override
@@ -54,11 +75,6 @@ public abstract class GsonSapProvider extends SAAgent {
         }
     }
 
-    /**
-     *
-     * @param intent
-     * @return IBinder
-     */
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
@@ -79,12 +95,12 @@ public abstract class GsonSapProvider extends SAAgent {
     /**
      * onReceiveRaw is called before json data is parsed so client app can process raw data if
      * needed without the extra overhead of parsing data that may not be json data.
+     * If there is any remaining unprocessed data that data will be passed off to the json parser.
      * @param data
-     * @return Returns true if data was handled and does not need to go to the json parser.
+     * @return Returns the number of bytes processed if data was handled.
      */
-    protected boolean onReceiveRaw(byte[] data) {
-        // Implement if needed.
-        return false;
+    protected int onReceiveRaw(byte[] data) {
+        return 0;
     }
 
     /**
@@ -94,6 +110,11 @@ public abstract class GsonSapProvider extends SAAgent {
      */
     abstract protected void onReceive(JsonSapProviderConnection.Requester requester, Object data);
 
+    /**
+     * Called when a generic request is received or an unknown type was received.
+     * @param requester
+     * @param request
+     */
     abstract protected void onReceivedRequest(JsonSapProviderConnection.Requester requester, GenericGsonSapRequest request);
 
     private static class SapData {
@@ -107,32 +128,168 @@ public abstract class GsonSapProvider extends SAAgent {
     }
 
     private class JsonSapDeserializer implements JsonDeserializer<SapData> {
-        public JsonSapDeserializer() {
-        }
-
         @Override
         public SapData deserialize(JsonElement je, Type type, JsonDeserializationContext jdc)
                 throws JsonParseException
         {
             String jstype = je.getAsJsonObject().get("type").getAsString();
-            if(null != jstype) {
+            if (null != jstype) {
                 Class<?> registeredClass = getRegisteredClass(jstype);
-                Log.w("JsonSapProvider", "Type not in registry: " + jstype);
-                if (null != registeredClass) {
-                    if(GenericGsonSapRequest.class.isAssignableFrom(registeredClass)) {
-                        return new SapData(jstype, new GenericGsonSapRequest(jstype, je.getAsJsonObject().get("data")));
-                    } else {
-                        JsonElement content = je.getAsJsonObject().get("data");
-                        return new SapData(
-                                jstype,
-                                new Gson().fromJson(content, registeredClass));
-                    }
+                Log.d(TAG, "Type not in registry: " + jstype);
+
+                JsonElement content = je.getAsJsonObject().get("data");
+
+                if (null != registeredClass && !GenericGsonSapRequest.class.isAssignableFrom(registeredClass)) {
+                    return new SapData(
+                            jstype,
+                            new Gson().fromJson(content, registeredClass));
+                } else {
+                    return new SapData(jstype, new GenericGsonSapRequest(jstype, content));
                 }
             }
             return null;
         }
     }
 
+    /**
+     * Converts a result code from an attempt to establish a connection with a peer to a string
+     * @param result
+     * @return
+     */
+    public static String statusToString(int result) {
+        switch (result) {
+        case CONNECTION_ALREADY_EXIST:
+            return "connection already exists";
+        case CONNECTION_FAILURE_DEVICE_UNREACHABLE:
+            return "connection failure device unreachable";
+        case CONNECTION_FAILURE_INVALID_PEERAGENT:
+            return "connection failure invalid peer agent";
+        case CONNECTION_FAILURE_NETWORK:
+            return "connection failure network";
+        case CONNECTION_FAILURE_PEERAGENT_NO_RESPONSE:
+            return "connection failure peer agent no response";
+        case CONNECTION_FAILURE_PEERAGENT_REJECTED:
+            return "connection failure peer agent rejected";
+        case CONNECTION_FAILURE_SERVICE_LIMIT_REACHED:
+            return "connection failure service limit reached";
+        case ERROR_CONNECTION_INVALID_PARAM:
+            return "error connection invalid param";
+        case ERROR_FATAL:
+            return "error fatal";
+        case ERROR_SDK_NOT_INITIALIZED:
+            return "error sdk not initialized";
+        case ERROR_SERVICE_CLASS_NAME_WRONG_IN_XML:
+            return "error service class name wrong in xml";
+        case ERROR_WRONG_CONSTRUCTOR_PARAM:
+            return "error wrong constructor param";
+        }
+        return "unknown status (" + result + ")";
+    }
+
+    /**
+     * Converts an error code to a string value
+     * @param errorCode A connection lost error code
+     * @return
+     */
+    public static String errorToString(int errorCode) {
+        switch (errorCode) {
+        case SASocket.CONNECTION_LOST_PEER_DISCONNECTED:
+            return "CONNECTION_LOST_PEER_DISCONNECTED (" + errorCode +")";
+        case SASocket.CONNECTION_LOST_UNKNOWN_REASON:
+            return "CONNECTION_LOST_UNKNOWN_REASON (" + errorCode +")";
+        case SASocket.CONNECTION_LOST_DEVICE_DETACHED:
+            return "CONNECTION_LOST_DEVICE_DETACHED (" + errorCode +")";
+        case SASocket.CONNECTION_LOST_RETRANSMISSION_FAILED:
+            return "CONNECTION_LOST_RETRANSMISSION_FAILED (" + errorCode +")";
+        case SASocket.ERROR_FATAL:
+            return "ERROR_FATAL (" + errorCode +")";
+        case SASocket.ERROR_CONNECTION_CLOSED:
+            return "ERROR_CONNECTION_CLOSED (" + errorCode +")";
+        }
+        return "UNKNOWN (" + errorCode +")";
+    }
+
+    /**
+     * Called when a new connection is established with a device.
+     * @param peerId
+     * @param connection
+     */
+    protected void onDeviceConnected(String peerId, JsonSapProviderConnection connection) {
+        // Implement if needed.
+    }
+
+    /**
+     * Called when a connection with a device has been lost.
+     * @param peerId
+     * @param connection
+     * @param errorCode
+     */
+    protected void onConnectionLost(String peerId, JsonSapProviderConnection connection, int errorCode) {
+        // Implement if needed
+
+    }
+
+    private String getRegisteredTypeName(Object data) throws IOException {
+        String type = mReverseClassRegistry.get(data.getClass());
+        if (null == type) {
+            throw new IOException("Type is not regestered. Register " + data.getClass().getName() + " with registerTypeAdapter()");
+        }
+        return type;
+    }
+
+    /**
+     * Send data to all connected accessories.
+     * NOTE: The type will be determined via type registration. If the object is not registered in the registry an exception will be thrown.
+     * @param data The data to be converted to JSON via GSON
+     * @throws IOException
+     */
+    public void send(Object data) throws IOException {
+        send(getRegisteredTypeName(data), data);
+    }
+
+    /**
+     * Send data to all connected accessories
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @throws IOException
+     */
+    public void send(String type, Object data) throws IOException {
+        for (JsonSapProviderConnection conn : mConnections.values()) {
+            if (conn.isConnected()) {
+                conn.send(type, data);
+            } else {
+                Log.w(TAG, "Accessory not connected: " + conn.getConnectedPeerAgent().getDeviceName());
+            }
+        }
+    }
+
+    /**
+     * Send data directly to a given accessory identified by its peer id
+     * @param peerId The id of the peer to send to
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @throws IOException
+     */
+    public void send(String peerId, String type, Object data) throws IOException {
+        JsonSapProviderConnection conn = mConnections.get(peerId);
+        if (null == conn) throw new IOException("Accessory not found.");
+        if (!conn.isConnected()) throw new IOException("Accessory not connected");
+        conn.send(type, data);
+    }
+
+    /**
+     * Gets the connection object associated with a given peer id.
+     * @param peerId The peer id to find.
+     * @return Returns null if no peer id is found.
+     */
+    public JsonSapProviderConnection getConnection(String peerId) {
+        return mConnections.get(peerId);
+    }
+
+    /**
+     * Connection object that handles connections with an individual peer application
+     * Created by Aaron Jackson on 10/13/14.
+     */
     public class JsonSapProviderConnection extends
             SASocket {
         /**
@@ -140,22 +297,32 @@ public abstract class GsonSapProvider extends SAAgent {
          */
         public class Requester {
             private String mType;
+            private SAPeerAgent mAgent;
 
             public Requester(String type) {
                 mType = type;
+                mAgent = getConnectedPeerAgent();
             }
 
             public String getRequestType() {
                 return mType;
             }
 
+            public SAPeerAgent getPeerAgent() {
+                return mAgent;
+            }
+
+            public String getDeviceName() {
+                return mAgent.getDeviceName();
+            }
+
             public void reply(String type, Object data) throws IOException {
-                send(CHANNEL, new Gson().toJson(new SapData(type, data)).getBytes());
+                send(type, data);
             }
         }
 
-        private int mConnectionId;
         private String TAG;
+        private String mPeerId;
 
         /**
          *
@@ -164,8 +331,12 @@ public abstract class GsonSapProvider extends SAAgent {
             super(JsonSapProviderConnection.class.getName());
         }
 
-        public void setService(GsonSapProvider service) {
-            TAG = GsonSapProvider.this.TAG + "::Connection";
+        public String getPeerId() {
+            return mPeerId;
+        }
+
+        public void setPeerId(String peerId) {
+            mPeerId = peerId;
         }
 
         /**
@@ -176,17 +347,18 @@ public abstract class GsonSapProvider extends SAAgent {
          */
         @Override
         public void onReceive(int channelId, byte[] data) {
-            if(onReceiveRaw(data)) return;
+            int processed = onReceiveRaw(data);
+            if (processed == data.length) return;
 
             try {
-                String sData = new String(data);
+                String sData = new String(data, processed, data.length - processed);
                 if (null != sData && sData.length() > 0) {
                     Gson gson = new GsonBuilder()
                             .registerTypeAdapter(SapData.class, new JsonSapDeserializer())
                             .create();
                     SapData parsedData = gson.fromJson(sData, SapData.class);
                     if (null != parsedData) {
-                        if(parsedData.data instanceof GenericGsonSapRequest) {
+                        if (parsedData.data instanceof GenericGsonSapRequest) {
                             onReceivedRequest(new Requester(parsedData.type), (GenericGsonSapRequest) parsedData.data);
                         } else {
                             GsonSapProvider.this.onReceive(new Requester(parsedData.type), parsedData.data);
@@ -206,8 +378,7 @@ public abstract class GsonSapProvider extends SAAgent {
          */
         @Override
         public void onError(int channelId, String errorString, int error) {
-            Log.e(TAG, "Connection is not alive ERROR: " + errorString + "  "
-                    + error);
+            Log.e(TAG, errorString + " (" + error + ")");
         }
 
         /**
@@ -216,8 +387,13 @@ public abstract class GsonSapProvider extends SAAgent {
          */
         @Override
         public void onServiceConnectionLost(int errorCode) {
-            Log.e(TAG, "onServiceConectionLost  for peer = "
-                    + mConnectionId + "error code =" + errorCode);
+            final String peerId = getPeerId();
+            mConnections.remove(peerId);
+            onConnectionLost(peerId, this, errorCode);
+        }
+
+        void send(String type, Object data) throws IOException {
+            send(CHANNEL, new Gson().toJson(new SapData(type, data)).getBytes());
         }
     }
 }

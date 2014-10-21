@@ -23,9 +23,9 @@ public class GenericGsonSapRequest {
     }
 
     public String getString(String name, String defaultVal) {
-        if(null != mData) {
+        if (null != mData) {
             JsonElement element = mData.getAsJsonObject().get(name);
-            if(null != element) {
+            if (null != element) {
                 return element.getAsString();
             }
         }
@@ -33,9 +33,9 @@ public class GenericGsonSapRequest {
     }
 
     public boolean getBoolean(String name, boolean defaultVal) {
-        if(null != mData) {
+        if (null != mData) {
             JsonElement element = mData.getAsJsonObject().get(name);
-            if(null != element) {
+            if (null != element) {
                 return element.getAsBoolean();
             }
         }
@@ -43,9 +43,9 @@ public class GenericGsonSapRequest {
     }
 
     public int getInt(String name, int defaultVal) {
-        if(null != mData) {
+        if (null != mData) {
             JsonElement element = mData.getAsJsonObject().get(name);
-            if(null != element) {
+            if (null != element) {
                 return element.getAsInt();
             }
         }
@@ -53,9 +53,9 @@ public class GenericGsonSapRequest {
     }
 
     public long getLong(String name, long defaultVal) {
-        if(null != mData) {
+        if (null != mData) {
             JsonElement element = mData.getAsJsonObject().get(name);
-            if(null != element) {
+            if (null != element) {
                 return element.getAsLong();
             }
         }
@@ -63,12 +63,27 @@ public class GenericGsonSapRequest {
     }
 
     public float getFloat(String name, float defaultVal) {
-        if(null != mData) {
+        if (null != mData) {
             JsonElement element = mData.getAsJsonObject().get(name);
-            if(null != element) {
+            if (null != element) {
                 return element.getAsFloat();
             }
         }
         return defaultVal;
+    }
+
+    public GenericGsonSapRequest getChild(String name) {
+        if (null != mData) {
+            JsonElement element = mData.getAsJsonObject().get(name);
+            if (null != element) {
+                return new GenericGsonSapRequest(mType, element);
+            }
+        }
+
+        return null;
+    }
+
+    public JsonElement getJsonElement() {
+        return mData;
     }
 }
