@@ -28,7 +28,7 @@ public abstract class GsonSapProvider extends SAAgent {
     public static final int CHANNEL = 104;
 
     HashMap<String, Class<?>> mClassRegistry = new HashMap<>();
-    HashMap<Class<?>, String> mReverseClassRegistry = new HashMap<>();
+    HashMap<String, String> mReverseClassRegistry = new HashMap<>();
     HashMap<String, JsonSapProviderConnection> mConnections = new HashMap<>();
 
     private final IBinder mBinder = new LocalBinder();
@@ -82,6 +82,7 @@ public abstract class GsonSapProvider extends SAAgent {
 
     protected void registerTypeAdapter(String name, Class<?> classType) {
         mClassRegistry.put(name, classType);
+        mReverseClassRegistry.put(classType.getName(), name);
     }
 
     protected void registerGenericRequest(String name) {
@@ -115,7 +116,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param requester
      * @param request
      */
-    abstract protected void onReceivedRequest(JsonSapProviderConnection.Requester requester, GenericGsonSapRequest request);
+    abstract protected void onReceiveRequest(JsonSapProviderConnection.Requester requester, GenericGsonSapRequest request);
 
     private static class SapData {
         final String type;
@@ -230,7 +231,7 @@ public abstract class GsonSapProvider extends SAAgent {
     }
 
     private String getRegisteredTypeName(Object data) throws IOException {
-        String type = mReverseClassRegistry.get(data.getClass());
+        String type = mReverseClassRegistry.get(data.getClass().getName());
         if (null == type) {
             throw new IOException("Type is not regestered. Register " + data.getClass().getName() + " with registerTypeAdapter()");
         }
@@ -270,11 +271,25 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param data The data to be converted to JSON via GSON
      * @throws IOException
      */
-    public void send(String peerId, String type, Object data) throws IOException {
+    public void send(String type, Object data, String peerId) throws IOException {
         JsonSapProviderConnection conn = mConnections.get(peerId);
         if (null == conn) throw new IOException("Accessory not found.");
         if (!conn.isConnected()) throw new IOException("Accessory not connected");
         conn.send(type, data);
+    }
+
+    /**
+     * Send data directly to a given accessory identified by its peer id
+     * @param peerId The id of the peer to send to
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @throws IOException
+     */
+    public void send(Object data, String peerId) throws IOException {
+        JsonSapProviderConnection conn = mConnections.get(peerId);
+        if (null == conn) throw new IOException("Accessory not found.");
+        if (!conn.isConnected()) throw new IOException("Accessory not connected");
+        conn.send(getRegisteredTypeName(data), data);
     }
 
     /**
@@ -359,7 +374,7 @@ public abstract class GsonSapProvider extends SAAgent {
                     SapData parsedData = gson.fromJson(sData, SapData.class);
                     if (null != parsedData) {
                         if (parsedData.data instanceof GenericGsonSapRequest) {
-                            onReceivedRequest(new Requester(parsedData.type), (GenericGsonSapRequest) parsedData.data);
+                            onReceiveRequest(new Requester(parsedData.type), (GenericGsonSapRequest) parsedData.data);
                         } else {
                             GsonSapProvider.this.onReceive(new Requester(parsedData.type), parsedData.data);
                         }
