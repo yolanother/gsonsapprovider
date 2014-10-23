@@ -24,6 +24,8 @@ public abstract class GsonSapProvider extends SAAgent {
     public static final long serialVersionUID = 3L;
     public static final String VERSION = "v0.0.3";
 
+    public static boolean DEBUG = false;
+
     private final String TAG;
     public static final int CHANNEL = 104;
 
@@ -136,7 +138,13 @@ public abstract class GsonSapProvider extends SAAgent {
             String jstype = je.getAsJsonObject().get("type").getAsString();
             if (null != jstype) {
                 Class<?> registeredClass = getRegisteredClass(jstype);
-                Log.d(TAG, "Type not in registry: " + jstype);
+                if (null == registeredClass) {
+                    try {
+                        registeredClass = Class.forName(jstype);
+                    } catch (ClassNotFoundException e) {
+                        // Type doesn't point to a class.
+                    }
+                }
 
                 JsonElement content = je.getAsJsonObject().get("data");
 
@@ -233,7 +241,10 @@ public abstract class GsonSapProvider extends SAAgent {
     private String getRegisteredTypeName(Object data) throws IOException {
         String type = mReverseClassRegistry.get(data.getClass().getName());
         if (null == type) {
-            throw new IOException("Type is not regestered. Register " + data.getClass().getName() + " with registerTypeAdapter()");
+            if (DEBUG) {
+                Log.w(TAG, data.getClass().getName() + " has not been added to registry. Using class name as registered type name.");
+            }
+            return data.getClass().getName();
         }
         return type;
     }
