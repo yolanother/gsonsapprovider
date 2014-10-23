@@ -334,6 +334,10 @@ public abstract class GsonSapProvider extends SAAgent {
             public void reply(String type, Object data) throws IOException {
                 send(type, data);
             }
+
+            public void reply(Object data) throws IOException {
+                send(getRegisteredTypeName(data), data);
+            }
         }
 
         private String TAG;
