@@ -21,8 +21,8 @@ import com.samsung.android.sdk.accessory.SAPeerAgent;
 import com.samsung.android.sdk.accessory.SASocket;
 
 public abstract class GsonSapProvider extends SAAgent {
-    public static final long serialVersionUID = 2L;
-    public static final String VERSION = "v0.0.2";
+    public static final long serialVersionUID = 3L;
+    public static final String VERSION = "v0.0.3";
 
     private final String TAG;
     public static final int CHANNEL = 104;
@@ -31,7 +31,7 @@ public abstract class GsonSapProvider extends SAAgent {
     HashMap<String, String> mReverseClassRegistry = new HashMap<>();
     HashMap<String, JsonSapProviderConnection> mConnections = new HashMap<>();
 
-    private final IBinder mBinder = new LocalBinder();
+    private final IBinder mBinder = new GsonSapProviderBinder();
 
     public GsonSapProvider(String tag) {
         super(tag, JsonSapProviderConnection.class);
@@ -69,7 +69,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @author Aaron Jackson
      *
      */
-    public class LocalBinder extends Binder {
+    public class GsonSapProviderBinder extends Binder {
         public GsonSapProvider getService() {
             return GsonSapProvider.this;
         }
