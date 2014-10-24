@@ -1,6 +1,7 @@
 package com.doubtech.gear.gsonsapprovider;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 
@@ -9,6 +10,8 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.doubtech.gear.gsonsapprovider.annotations.Channel;
+import com.doubtech.gear.gsonsapprovider.annotations.PreventUnregistered;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -21,13 +24,13 @@ import com.samsung.android.sdk.accessory.SAPeerAgent;
 import com.samsung.android.sdk.accessory.SASocket;
 
 public abstract class GsonSapProvider extends SAAgent {
-    public static final long serialVersionUID = 3L;
-    public static final String VERSION = "v0.0.3";
+    public static final long serialVersionUID = 4L;
+    public static final String VERSION = "v0.0.4";
 
     public static boolean DEBUG = false;
 
     private final String TAG;
-    public static final int CHANNEL = 104;
+    public final int CHANNEL;
 
     HashMap<String, Class<?>> mClassRegistry = new HashMap<>();
     HashMap<String, String> mReverseClassRegistry = new HashMap<>();
@@ -38,6 +41,10 @@ public abstract class GsonSapProvider extends SAAgent {
     public GsonSapProvider(String tag) {
         super(tag, JsonSapProviderConnection.class);
         TAG = tag;
+
+        Channel channel = getClass().getAnnotation(Channel.class);
+        CHANNEL = null == channel ? 104 : channel.value();
+        Log.d(TAG, "Configured to use channel " + CHANNEL);
     }
 
     @Override
@@ -139,6 +146,9 @@ public abstract class GsonSapProvider extends SAAgent {
             if (null != jstype) {
                 Class<?> registeredClass = getRegisteredClass(jstype);
                 if (null == registeredClass) {
+                    if (getClass().isAnnotationPresent(PreventUnregistered.class)) {
+                        Log.w(TAG, jstype + " has not been added to registry. Using class name as registered type name.");
+                    }
                     try {
                         registeredClass = Class.forName(jstype);
                     } catch (ClassNotFoundException e) {
@@ -241,12 +251,73 @@ public abstract class GsonSapProvider extends SAAgent {
     private String getRegisteredTypeName(Object data) throws IOException {
         String type = mReverseClassRegistry.get(data.getClass().getName());
         if (null == type) {
+            if (getClass().isAnnotationPresent(PreventUnregistered.class)) {
+                throw new IOException(data.getClass().getName() + " has not been added to registry. Using class name as registered type name.");
+            }
             if (DEBUG) {
                 Log.w(TAG, data.getClass().getName() + " has not been added to registry. Using class name as registered type name.");
             }
             return data.getClass().getName();
         }
         return type;
+    }
+
+    /**
+     * Send data to all connected accessories.
+     * NOTE: The type will be determined via type registration. If the object is not registered in the registry an exception will be thrown.
+     * @param data The data to be converted to JSON via GSON
+     * @param channel The channel to use to send
+     * @throws IOException
+     */
+    public void send(Object data, int channel) throws IOException {
+        send(getRegisteredTypeName(data), data, channel);
+    }
+
+    /**
+     * Send data to all connected accessories
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @param channel The channel to use to send
+     * @throws IOException
+     */
+    public void send(String type, Object data, int channel) throws IOException {
+        for (JsonSapProviderConnection conn : mConnections.values()) {
+            if (conn.isConnected()) {
+                conn.send(type, data);
+            } else {
+                Log.w(TAG, "Accessory not connected: " + conn.getConnectedPeerAgent().getDeviceName());
+            }
+        }
+    }
+
+    /**
+     * Send data directly to a given accessory identified by its peer id
+     * @param peerId The id of the peer to send to
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @param channel The channel to use to send
+     * @throws IOException
+     */
+    public void send(String type, Object data, String peerId, int channel) throws IOException {
+        JsonSapProviderConnection conn = mConnections.get(peerId);
+        if (null == conn) throw new IOException("Accessory not found.");
+        if (!conn.isConnected()) throw new IOException("Accessory not connected");
+        conn.send(type, data, channel);
+    }
+
+    /**
+     * Send data directly to a given accessory identified by its peer id
+     * @param peerId The id of the peer to send to
+     * @param type The name of the message being sent
+     * @param data The data to be converted to JSON via GSON
+     * @param channel The channel to use to send
+     * @throws IOException
+     */
+    public void send(Object data, String peerId, int channel) throws IOException {
+        JsonSapProviderConnection conn = mConnections.get(peerId);
+        if (null == conn) throw new IOException("Accessory not found.");
+        if (!conn.isConnected()) throw new IOException("Accessory not connected");
+        conn.send(getRegisteredTypeName(data), data, channel);
     }
 
     /**
@@ -424,6 +495,10 @@ public abstract class GsonSapProvider extends SAAgent {
 
         void send(String type, Object data) throws IOException {
             send(CHANNEL, new Gson().toJson(new SapData(type, data)).getBytes());
+        }
+
+        void send(String type, Object data, int channel) throws IOException {
+            send(channel, new Gson().toJson(new SapData(type, data)).getBytes());
         }
     }
 }
