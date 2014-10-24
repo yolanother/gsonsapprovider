@@ -1,7 +1,6 @@
 package com.doubtech.gear.gsonsapprovider;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 
