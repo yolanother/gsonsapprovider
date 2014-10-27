@@ -15,7 +15,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.TextView;
 
-import com.example.gsonsapsample.data.HelloMessage;
+import com.samsung.gear.gsonsapproviderdemo.data.HelloMessage;
 import com.samsung.gear.gsonsapproviderservice.GsonSapProvider;
 import com.samsung.gear.gsonsapproviderservice.GsonSapProvider.GsonSapProviderBinder;
 
@@ -41,13 +41,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(com.doubtech.gear.gsonsapproviderdemo.R.layout.activity_main);
+        setContentView(R.layout.activity_main);
 
         Intent service = new Intent(this, GsonSapSampleService.class);
         bindService(service, mConnection, BIND_AUTO_CREATE);
 
-        mTextView = (TextView) findViewById(com.doubtech.gear.gsonsapproviderdemo.R.id.message);
-        findViewById(com.doubtech.gear.gsonsapproviderdemo.R.id.send).setOnClickListener(new OnClickListener() {
+        mTextView = (TextView) findViewById(R.id.message);
+        findViewById(R.id.send).setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (null != mService) {
@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(com.doubtech.gear.gsonsapproviderdemo.R.menu.main, menu);
+        getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
 
@@ -74,7 +74,7 @@ public class MainActivity extends Activity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        if (id == com.doubtech.gear.gsonsapproviderdemo.R.id.action_settings) {
+        if (id == R.id.action_settings) {
             return true;
         }
         return super.onOptionsItemSelected(item);

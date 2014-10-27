@@ -8,8 +8,8 @@ android {
         applicationId "com.samsung.gear.gsonsapproviderservice"
         minSdkVersion 19
         targetSdkVersion 21
-        versionCode 5
-        versionName "0.0.5"
+        versionCode 6
+        versionName "0.0.6"
     }
 
     compileOptions {
@@ -35,7 +35,7 @@ dependencies {
 ext {
     PUBLISH_GROUP_ID = 'com.samsung.gear.gsonsapproviderservice'
     PUBLISH_ARTIFACT_ID = 'gson-sap-provider-service'
-    PUBLISH_VERSION = '0.0.5'
+    PUBLISH_VERSION = '0.0.6'
 }
 
 apply from: 'android-release-aar.gradle'
