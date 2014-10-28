@@ -41,6 +41,7 @@ public class GsonSapSampleService extends GsonSapProvider {
                 Log.e(TAG, e.getMessage());
             }
         }
+        send
     }
 
     @Override

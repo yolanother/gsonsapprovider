@@ -3,13 +3,15 @@ GSON SAP Provider Service
 
 A Samsung Accessory Protocol provider that handles most of the SAP layer communications using GSON.
 
-For more information please see [the website][1].
+For more information please see the associated [blog entry][1].
 
 
 Download
 --------
 
-[ ![Download](https://api.bintray.com/packages/yolan/maven/gsonsapprovider/images/download.svg) ](https://bintray.com/yolan/maven/gsonsapprovider/_latestVersion) or grab via Maven:
+[ ![Download](https://api.bintray.com/packages/yolan/maven/gsonsapprovider/images/download.svg) ](https://github.com/yolanother/gsonsapprovider/releases) 
+
+Maven:
 ```xml
 <dependency>
   <groupId>com.google.code.gson</groupId>
@@ -19,7 +21,7 @@ Download
 </dependency>
 
 ```
-or Gradle:
+Gradle:
 ```groovy
 compile 'com.samsung.gear.gsonsapproviderservice:gson-sap-provider-service:+'
 ```
@@ -43,4 +45,4 @@ License
     limitations under the License.
 
 
- [1]: http://github.com/yolanother/gsonsapprovider
+ [1]: http://aaron.jaxns.net/2014/10/sap-communication-with-gson/
