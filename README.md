@@ -14,9 +14,9 @@ Download
 Maven:
 ```xml
 <dependency>
-  <groupId>com.google.code.gson</groupId>
-  <artifactId>gson</artifactId>
-  <version>2.2.4</version>
+  <groupId>com.samsung.gear.gsonsapproviderservice</groupId>
+  <artifactId>gson-sap-provider-service</artifactId>
+  <version>0.0.6</version>
   <scope>compile</scope>
 </dependency>
 
