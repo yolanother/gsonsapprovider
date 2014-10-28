@@ -1,4 +1,4 @@
-package com.doubtech.gear.gsonsapprovider.annotations;
+package com.samsung.gear.gsonsapproviderservice.annotations;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

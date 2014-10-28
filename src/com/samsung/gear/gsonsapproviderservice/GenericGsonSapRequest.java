@@ -1,4 +1,4 @@
-package com.doubtech.gear.gsonsapprovider;
+package com.samsung.gear.gsonsapproviderservice;
 
 import com.google.gson.JsonElement;
 

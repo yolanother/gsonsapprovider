@@ -1,4 +1,4 @@
-package com.doubtech.gear.gsonsapprovider;
+package com.samsung.gear.gsonsapproviderservice;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -9,8 +9,8 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 
-import com.doubtech.gear.gsonsapprovider.annotations.Channel;
-import com.doubtech.gear.gsonsapprovider.annotations.PreventUnregistered;
+import com.samsung.gear.gsonsapproviderservice.annotations.Channel;
+import com.samsung.gear.gsonsapproviderservice.annotations.PreventUnregistered;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
@@ -23,8 +23,8 @@ import com.samsung.android.sdk.accessory.SAPeerAgent;
 import com.samsung.android.sdk.accessory.SASocket;
 
 public abstract class GsonSapProvider extends SAAgent {
-    public static final long serialVersionUID = 4L;
-    public static final String VERSION = "v0.0.4";
+    public static final long serialVersionUID = 5L;
+    public static final String VERSION = "v0.0.5";
 
     public static boolean DEBUG = false;
 
@@ -37,8 +37,19 @@ public abstract class GsonSapProvider extends SAAgent {
 
     private final IBinder mBinder = new GsonSapProviderBinder();
 
+    static final Class<? extends SASocket> CONNECTION_CLASS;
+    static {
+        try {
+            // Ugly hack to fix AndroidStudio issue with SAAgent constructor.
+            String cn = "com.samsung.gear.gsonsapproviderservice.GsonSapProvider$JsonSapProviderConnection";
+            CONNECTION_CLASS = (Class<? extends SASocket>) Class.forName(cn);
+        } catch (ClassNotFoundException | ClassCastException e) {
+            throw new RuntimeException("Could not find suitable SASocket! (Missing " + "com.samsung.gear.gsonsapproviderservice.GsonSapProvider$JsonSapProviderConnection", e);
+        }
+    }
+
     public GsonSapProvider(String tag) {
-        super(tag, JsonSapProviderConnection.class);
+        super(tag, CONNECTION_CLASS);
         TAG = tag;
 
         Channel channel = getClass().getAnnotation(Channel.class);
@@ -266,7 +277,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * NOTE: The type will be determined via type registration. If the object is not registered in the registry an exception will be thrown.
      * @param data The data to be converted to JSON via GSON
      * @param channel The channel to use to send
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(Object data, int channel) throws IOException {
         send(getRegisteredTypeName(data), data, channel);
@@ -277,7 +288,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
      * @param channel The channel to use to send
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(String type, Object data, int channel) throws IOException {
         for (JsonSapProviderConnection conn : mConnections.values()) {
@@ -295,7 +306,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
      * @param channel The channel to use to send
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(String type, Object data, String peerId, int channel) throws IOException {
         JsonSapProviderConnection conn = mConnections.get(peerId);
@@ -310,7 +321,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
      * @param channel The channel to use to send
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(Object data, String peerId, int channel) throws IOException {
         JsonSapProviderConnection conn = mConnections.get(peerId);
@@ -323,7 +334,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * Send data to all connected accessories.
      * NOTE: The type will be determined via type registration. If the object is not registered in the registry an exception will be thrown.
      * @param data The data to be converted to JSON via GSON
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(Object data) throws IOException {
         send(getRegisteredTypeName(data), data);
@@ -333,7 +344,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * Send data to all connected accessories
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(String type, Object data) throws IOException {
         for (JsonSapProviderConnection conn : mConnections.values()) {
@@ -350,7 +361,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param peerId The id of the peer to send to
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(String type, Object data, String peerId) throws IOException {
         JsonSapProviderConnection conn = mConnections.get(peerId);
@@ -364,7 +375,7 @@ public abstract class GsonSapProvider extends SAAgent {
      * @param peerId The id of the peer to send to
      * @param type The name of the message being sent
      * @param data The data to be converted to JSON via GSON
-     * @throws IOException
+     * @throws java.io.IOException
      */
     public void send(Object data, String peerId) throws IOException {
         JsonSapProviderConnection conn = mConnections.get(peerId);
